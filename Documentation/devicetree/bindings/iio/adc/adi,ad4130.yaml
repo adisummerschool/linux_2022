@@ -92,7 +92,7 @@ required:
   - interrupts
 
 patternProperties:
-  "^channel@([0-9]|1[0-5])$":
+  "^channel@([0-9a-f])$":
     type: object
     $ref: adc.yaml
     unevaluatedProperties: false
