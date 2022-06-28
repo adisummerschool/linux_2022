@@ -159,7 +159,6 @@ patternProperties:
         description: |
           Excitation current in nanoamps to be applied to pin specified in
           adi,excitation-pin-0 while this channel is active.
-        $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 100, 10000, 20000, 50000, 100000, 150000, 200000]
         default: 0
 
@@ -167,14 +166,12 @@ patternProperties:
         description: |
           Excitation current in nanoamps to be applied to pin specified in
           adi,excitation-pin-1 while this channel is active.
-        $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 100, 10000, 20000, 50000, 100000, 150000, 200000]
         default: 0
 
       adi,burnout-current-nanoamp:
         description: |
           Burnout current in nanoamps to be applied for this channel.
-        $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 500, 2000, 4000]
         default: 0
 
