@@ -293,6 +293,17 @@ config AD799X
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad799x.
 
+config AD5592R
+	tristate "Analog Devices AD5592R ADC driver"
+	depends on SPI
+	
+	help
+	  Say yes here to enable support for Analog Devices AD5592R
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad5592r.  
+
 config AD9963
 	tristate "Analog Devices AD9963 ADC driver"
 	depends on SPI
