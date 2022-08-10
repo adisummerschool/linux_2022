@@ -553,6 +553,14 @@ config AXP288_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called axp288_adc.
 
+config AD5592R
+	tristate "Analog Devices AD5593R IIO driver"
+	depends on SPI
+	help
+	  Say yes here to enable support for Analog Devices AD5593R IIO driver.
+
+	  To compile this driver as a module, choose M here: the module will be called ad5592r.
+
 config BCM_IPROC_ADC
 	tristate "Broadcom IPROC ADC driver"
 	depends on (ARCH_BCM_IPROC && OF) || COMPILE_TEST
