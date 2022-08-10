@@ -702,6 +702,13 @@ config HX711
 	  This driver can also be built as a module. If so, the module will be
 	  called hx711.
 
+config AD5592r
+	tristate "Analog Devices IIO Emulator Driver"
+	depends on SPI
+	help 
+      Say yes here to enable support for Analog Devices IIO driver.
+      To compile this driver as a module, choose M here: the module will be called ad5592r.	  
+
 config INA2XX_ADC
 	tristate "Texas Instruments INA2xx Power Monitors IIO driver"
 	depends on I2C && !SENSORS_INA2XX
