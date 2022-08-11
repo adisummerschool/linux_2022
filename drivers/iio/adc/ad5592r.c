@@ -20,7 +20,7 @@ static int ad5592r_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	indio_dev->name = "iio-adi-emu";
+	indio_dev->name = "ad5592r";
 	indio_dev->info = &ad5592r_info;
 
 	dev_info(&spi->dev, "ad5592r Probed");
