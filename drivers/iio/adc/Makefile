@@ -19,6 +19,7 @@ obj-$(CONFIG_AD7298) += ad7298.o
 obj-$(CONFIG_AD738X) += ad738x.o
 obj-$(CONFIG_AD7923) += ad7923.o
 obj-$(CONFIG_AD7476) += ad7476.o
+obj-$(CONFIG_AD5592R) += ad5592r.o
 obj-$(CONFIG_AD7606_IFACE_PARALLEL) += ad7606_par.o
 obj-$(CONFIG_AD7606_IFACE_SPI) += ad7606_spi.o
 obj-$(CONFIG_AD7606) += ad7606.o
@@ -34,7 +35,6 @@ obj-$(CONFIG_AD799X) += ad799x.o
 obj-$(CONFIG_ADI_AXI_ADC) += adi-axi-adc.o
 obj-$(CONFIG_AD9963) += ad9963.o
 obj-$(CONFIG_ADM1177) += adm1177.o
-obj-$(CONFIG_IIO_ADI_EMU) += iio-adi-emu.o
 
 cf_axi_adc-y := cf_axi_adc_core.o
 obj-$(CONFIG_CF_AXI_ADC) += cf_axi_adc.o
