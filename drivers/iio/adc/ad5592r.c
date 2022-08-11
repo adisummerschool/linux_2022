@@ -16,10 +16,10 @@ static int ad5592r_probe(struct spi_device*spi)
      indio_dev = devm_iio_device_alloc(&spi->dev,0);
 
      if(!indio_dev)
-      return -ENOMEN;
+      return -ENOMEM;
 
-    indio dev->name = "ad5592r";
-    indio dev->info  = &ad5592r_info;
+    indio_dev->name = "ad5592r";
+    indio_dev->info  = &ad5592r_info;
     dev_info(&spi->dev,"ad5592r Probed");
 
     return devm_iio_device_register(&spi->dev,indio_dev);
