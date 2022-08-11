@@ -705,7 +705,7 @@ config HX711
 
 config IIO_ADI_AD5592R
 	tristate "Analog Devices IIO Emulator Driver"
-	depends on SPI
+	depends on SPI 
 	select SPI_ADI_AD5592R
 	help
 	  Say yes here to enable support for Analog Devices IIO AD5592R
