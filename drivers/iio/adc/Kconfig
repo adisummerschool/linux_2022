@@ -338,6 +338,15 @@ config ADI_AXI_ADC
 	  To compile this driver as a module, choose M here: the
 	  module will be called adi-axi-adc.
 
+config ADI5592R
+	tristate "Analog Devices ADI5592R Driver"
+	depends on SPI 
+	help 
+	  Say yes here to enable support for Analog Devices adi5992r
+	  driver.
+	  To compile this driver as a module, choose M here: the module will be
+	  called .
+
 config ASPEED_ADC
 	tristate "Aspeed ADC"
 	depends on ARCH_ASPEED || COMPILE_TEST

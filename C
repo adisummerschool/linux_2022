@@ -1,0 +1,12 @@
+Add change
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch practica_DAF
+# Changes to be committed:
+#	modified:   arch/arm/boot/dts/zynq-coraz7s.dts
+#	modified:   drivers/iio/adc/Kconfig
+#	modified:   drivers/iio/adc/Makefile
+#	new file:   drivers/iio/adc/ad5592r.c
+#
