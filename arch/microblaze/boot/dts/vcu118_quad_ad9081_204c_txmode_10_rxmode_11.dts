@@ -8,8 +8,22 @@
  * hdl_project: <ad_quadmxfe1_ebz/vcu118>
  * board_revision: <>
  *
- * Copyright (C) 2019-2020 Analog Devices Inc.
+ * Copyright (C) 2019-2022 Analog Devices Inc.
  */
+
+// HDL Synthesis Parameters:
+// JESD_MODE=64B66B
+// RX_RATE=16.5
+// TX_RATE=16.5
+// REF_CLK_RATE=250
+// RX_JESD_M=4
+// RX_JESD_L=4
+// RX_JESD_S=1
+// TX_JESD_M=4
+// TX_JESD_L=4
+// TX_JESD_S=1
+// RX_KS_PER_CHANNEL=64
+// TX_KS_PER_CHANNEL=16
 
 #include <dt-bindings/iio/frequency/hmc7044.h>
 #include <dt-bindings/iio/adc/adi,ad9081.h>
@@ -21,7 +35,7 @@
 // TX JESD204C MODE 10, M=4, L=4
 // RX JESD204C MODE 11, M=4, L=4
 
-#define ADRF4360_RF16_FREQUENCY_HZ		12000000000
+#define ADF4371_RF16_FREQUENCY_HZ		12000000000
 
 #define HMC7043_FPGA_XCVR_CLKDIV		2
 #define HMC7043_FPGA_LINK_CLKDIV_TX		2
@@ -29,7 +43,7 @@
 #define HMC7043_SYSREF_CLKDIV			1024 // Later try setting this to 128 to see if it still works
 #define HMC7043_SYSREF_TIMER			(HMC7043_SYSREF_CLKDIV * 4)
 
-#define AD9081_DAC_FREQUENCY			ADRF4360_RF16_FREQUENCY_HZ
+#define AD9081_DAC_FREQUENCY			ADF4371_RF16_FREQUENCY_HZ
 #define AD9081_ADC_FREQUENCY			4000000000
 
  /* TX path */
@@ -119,55 +133,31 @@
 	jesd204-inputs = <&hmc7043 0 DEFRAMER_LINK0_TX>; /* omit axi_ad9081_adxcvr_tx */
 };
 
-&rx_dma {
-	adi,channels {
-		dma-channel@0 {
-			reg = <0>;
-			adi,source-bus-width = <1024>; /* Needs to be 64 * JESD_L */
-			adi,source-bus-type = <2>;
-			adi,destination-bus-width = <512>; /* fixed */
-			adi,destination-bus-type = <0>;
-		};
-	};
-};
-
-&tx_dma {
-	adi,channels {
-		dma-channel@0 {
-			reg = <0>;
-			adi,source-bus-width = <512>; /* fixed*/
-			adi,source-bus-type = <0>;
-			adi,destination-bus-width = <1024>; /* Needs to be 64 * JESD_L */
-			adi,destination-bus-type = <2>;
-		};
-	};
-};
-
 &adf4371_clk0 {
 	channel@2 {
 		reg = <2>;
-		adi,power-up-frequency = /bits/ 64 <ADRF4360_RF16_FREQUENCY_HZ>;
+		adi,power-up-frequency = /bits/ 64 <ADF4371_RF16_FREQUENCY_HZ>;
 	};
 };
 
 &adf4371_clk1 {
 	channel@2 {
 		reg = <2>;
-		adi,power-up-frequency = /bits/ 64 <ADRF4360_RF16_FREQUENCY_HZ>;
+		adi,power-up-frequency = /bits/ 64 <ADF4371_RF16_FREQUENCY_HZ>;
 	};
 };
 
 &adf4371_clk2 {
 	channel@2 {
 		reg = <2>;
-		adi,power-up-frequency = /bits/ 64 <ADRF4360_RF16_FREQUENCY_HZ>;
+		adi,power-up-frequency = /bits/ 64 <ADF4371_RF16_FREQUENCY_HZ>;
 	};
 };
 
 &adf4371_clk3 {
 	channel@2 {
 		reg = <2>;
-		adi,power-up-frequency = /bits/ 64 <ADRF4360_RF16_FREQUENCY_HZ>;
+		adi,power-up-frequency = /bits/ 64 <ADF4371_RF16_FREQUENCY_HZ>;
 	};
 };
 

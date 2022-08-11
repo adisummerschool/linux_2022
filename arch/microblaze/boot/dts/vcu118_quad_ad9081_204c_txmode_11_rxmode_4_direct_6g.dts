@@ -8,8 +8,22 @@
  * hdl_project: <ad_quadmxfe1_ebz/vcu118>
  * board_revision: <>
  *
- * Copyright (C) 2019-2020 Analog Devices Inc.
+ * Copyright (C) 2019-2022 Analog Devices Inc.
  */
+
+// HDL Synthesis Parameters:
+// JESD_MODE=64B66B
+// RX_RATE=16.5
+// TX_RATE=16.5
+// REF_CLK_RATE=250
+// RX_JESD_M=8
+// RX_JESD_L=2
+// RX_JESD_S=1
+// TX_JESD_M=16
+// TX_JESD_L=4
+// TX_JESD_S=1
+// RX_KS_PER_CHANNEL=32
+// TX_KS_PER_CHANNEL=16
 
 #include <dt-bindings/iio/frequency/hmc7044.h>
 #include <dt-bindings/iio/adc/adi,ad9081.h>
@@ -151,29 +165,6 @@
 /delete-node/ &axi_ad9081_adxcvr_rx;
 /delete-node/ &axi_ad9081_adxcvr_tx;
 
-&rx_dma {
-	adi,channels {
-		dma-channel@0 {
-			reg = <0>;
-			adi,source-bus-width = <512>; /* Needs to be 32 * JESD_L */
-			adi,source-bus-type = <2>;
-			adi,destination-bus-width = <512>;  /* Needs to be 32 * JESD_L */
-			adi,destination-bus-type = <0>;
-		};
-	};
-};
-
-&tx_dma {
-	adi,channels {
-		dma-channel@0 {
-			reg = <0>;
-			adi,source-bus-width = <512>; /* Needs to be 32 * JESD_L */
-			adi,source-bus-type = <0>;
-			adi,destination-bus-width = <512>; /* Needs to be 32 * JESD_L */
-			adi,destination-bus-type = <2>;
-		};
-	};
-};
 &hmc7043 {
 	hmc7043_c0: channel@0 {
 		reg = <0>;
