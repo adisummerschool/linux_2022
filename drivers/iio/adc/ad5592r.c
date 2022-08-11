@@ -9,10 +9,10 @@
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 
-static const struct iio_info adi_emu_info = {
+static const struct iio_info ad5592r_info = {
 };
 
-static int adi_emu_probe(struct spi_device *spi)
+static int ad5592r_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 
@@ -21,19 +21,21 @@ static int adi_emu_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	indio_dev->name = "iio-adi-emu";
-	indio_dev->info = &adi_emu_info;
+	indio_dev->info = &ad5592r_info;
+
+	dev_info(&spi->dev, "ad5592r Probed");
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
-static struct spi_driver adi_emu_driver = {
+static struct spi_driver ad5592r_driver = {
 	.driver = {
-		.name = "iio-adi-emu",
+		.name = "ad5592r",
 	},
-	.probe = adi_emu_probe,
+	.probe = ad5592r_probe,
 };
-module_spi_driver(adi_emu_driver);
+module_spi_driver(ad5592r_driver);
 
-MODULE_AUTHOR("Dragos Bogdan <dragos.bogdan@analog.com>");
-MODULE_DESCRIPTION("IIO ADI Emulator Driver");
+MODULE_AUTHOR("Curelaru Catalin <catalincurelaru0205@gmail.com>");
+MODULE_DESCRIPTION("AD5592r Driver");
 MODULE_LICENSE("GPL v2");
