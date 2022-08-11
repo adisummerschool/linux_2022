@@ -16,10 +16,10 @@ static int adi_ad5592r_probe(struct spi_device *spi)
         return -ENOMEM;
     }
     
-    indio_dev->name = "iio-adi-emu";
+    indio_dev->name = "ad5592r";
     indio_dev->info = &adi_ad5592r_info;
 
-    dev_info(&spi->dev, "iio-adi-ad5592r Probed");
+    dev_info(&spi->dev, "ad5592r Probed");
 
     return devm_iio_device_register(&spi->dev, indio_dev);
 }
