@@ -713,15 +713,15 @@ config IIO_ADI_EMU
 		To compile this driver as a module, choose M here: the module will be
 		called iio-adi-emu.
 
-config AD5592R
-	tristate "Analog Devices AD5592R Driver"
+config AD5592R_PRACTICA
+	tristate "Analog Devices AD5592R_Practica Driver"
 	depends on SPI
 	select SPI_ADI_EMU
 	help
 		Say yes here to enable support for Analog Devices ADC Driver.
 	 
 		To compile this driver as a module, choose M here: the module will be
-		called ad5592r.
+		called ad5592r-practica.
 
 config INA2XX_ADC
 	tristate "Texas Instruments INA2xx Power Monitors IIO driver"
