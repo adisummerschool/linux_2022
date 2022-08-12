@@ -211,6 +211,18 @@ config AD7768_1
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad7768-1.
 
+config AD5592R
+    tristate "Analog Devices AD5592R ADC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD7170, AD7171,
+	  AD7780 and AD7781 SPI analog to digital converters (ADC).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7780.
+
+        
+
 config AD7780
 	tristate "Analog Devices AD7780 and similar ADCs driver"
 	depends on SPI
@@ -701,6 +713,14 @@ config HX711
 
 	  This driver can also be built as a module. If so, the module will be
 	  called hx711.
+
+config IIO_ADI_EMU
+    tristate "Analog Devices IIO Emulator Driver"
+	depends on SPI
+    select SPI_ADI_EMU
+	help 
+	  Say yes here to enable support for Analog Devices IIO Emulator driver.
+	  To compile this driver as a module, choose M here: the module will be called iio-adi-emu
 
 config INA2XX_ADC
 	tristate "Texas Instruments INA2xx Power Monitors IIO driver"
