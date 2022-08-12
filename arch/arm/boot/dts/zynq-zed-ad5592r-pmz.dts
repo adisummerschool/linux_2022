@@ -1,0 +1,12 @@
+/dts-v1/;
+#include "zynq-zed.dtsi"
+
+
+&spi0{
+	status = "okay";
+	ad5592r: adc@0{
+		compatible = "ad5592r_summer";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+	};
+};
