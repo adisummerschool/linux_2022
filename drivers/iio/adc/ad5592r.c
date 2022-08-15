@@ -19,17 +19,25 @@ int ad5592r_read_raw(struct iio_dev *indio_dev,
 			int *val2,
 			long mask)
 {
-    struct ad5592r_priv *priv = iio_priv(indio_dev);
-    switch (mask){
-    case IIO_CHAN_INFO_RAW:
-        if(chan->channel) 
-            *val = 2;
-        else
-            *val = 5;
-        return IIO_VAL_INT;
 
-    case  IIO_CHAN_INFO_ENABLE:
-        *val = priv->enable;
+    switch (mask) {
+    case IIO_CHAN_INFO_RAW:
+        switch(chan->channel) {
+			 //in order to read ADC channel 0 we have to write to the ADC sequence register + 2xNOP
+			 // 0(D15) 0010(seq addr) 0(reserved) 0(rep) 0(temp) 00000001 (channel 0 bit set)
+			case 0: 
+				*val=0;
+				 break;
+			case 1:
+				*val=1;
+				break;
+			case 2:
+				*val=2;
+				break;
+			case 3:
+				*val=3;
+				break;
+		}
         return IIO_VAL_INT;   
     }
     return -EINVAL;  
@@ -40,14 +48,8 @@ int ad5592r_write_raw(struct iio_dev *indio_dev,
 			int val,
 			int val2,
 			long mask)
-{
-    struct ad5592r_priv *priv = iio_priv(indio_dev);
-    switch (mask){
-        case IIO_CHAN_INFO_ENABLE:
-            priv->enable = val;
-            return 0;
-    }
-    return -EINVAL; 
+{   
+    return 0;
 } 
 
 static const struct iio_info ad5592r_info = {
@@ -83,7 +85,7 @@ static const struct iio_chan_spec ad5592r_channels[] = {
     {
         .type = IIO_VOLTAGE,
         .output = 0,
-        .channel = 0,
+        .channel = 3,
         .indexed = 1,
         .info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_ENABLE),
         .info_mask_shared_by_all = BIT(IIO_CHAN_INFO_HARDWAREGAIN),
