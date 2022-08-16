@@ -713,6 +713,18 @@ config HX711
 	  This driver can also be built as a module. If so, the module will be
 	  called hx711.
 
+
+config AD5592R_PRACTICA
+	tristate "Analog Devices AD5592R Driver (Practica)"
+	depends on SPI
+	select IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices AD5592R 
+	  SPI analog to digital converter (ADC).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5592r_practica.
+
 config INA2XX_ADC
 	tristate "Texas Instruments INA2xx Power Monitors IIO driver"
 	depends on I2C && !SENSORS_INA2XX
