@@ -13,8 +13,8 @@ struct ad5592r_priv {
 };
 
 int ad5592r_read_raw(struct iio_dev *indio_dev,
-		     struct iio_chan_spec const *chan, int *val, int *val2,
-		     long mask)
+		struct iio_chan_spec const *chan, int *val, int *val2,
+		long mask)
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -38,8 +38,8 @@ int ad5592r_read_raw(struct iio_dev *indio_dev,
 }
 
 int ad5592r_write_raw(struct iio_dev *indio_dev,
-		      struct iio_chan_spec const *chan, int val, int val2,
-		      long mask)
+		struct iio_chan_spec const *chan, int val, int val2,
+		long mask)
 {
 	return 0;
 }
@@ -106,10 +106,10 @@ static int ad5592r_probe(struct spi_device *spi)
 }
 
 static struct spi_driver ad5592r_driver = {
-    .driver = {
-        .name = "practica_ad5592r",
-    },
-    .probe = ad5592r_probe,
+	.driver = {
+	.name ="practica_ad5592r",
+},
+	.probe = ad5592r_probe,
 };
 
 module_spi_driver(ad5592r_driver);
@@ -117,4 +117,3 @@ module_spi_driver(ad5592r_driver);
 MODULE_AUTHOR("Rusu Razvan <rusurazvan779@gmail.com>");
 MODULE_DESCRIPTION("IIO ADI Emulator Driver");
 MODULE_LICENSE("GPL v2");
-s
