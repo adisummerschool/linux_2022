@@ -4,13 +4,83 @@
  *
  * Copyright 2018 Analog Devices Inc.
  */
+
+#include <asm/unaligned.h>
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
-struct ad5592r_priv {
-	bool enable;
+
+
+#define ADI_AD5592R_REG_READBACK 	0x7
+#define  ADI_AD5592R_MASK_RB_EN		BIT(6)	
+#define  ADI_AD5592R_MASK_REG_RB	GENMASK(5, 2)	
+
+#define ADI_AD5592R_ADDR_MASK		GENMASK(14,11)
+#define ADI_AD5592R_VAL_MASK		GENMASK(10, 0)
+
+
+static struct adi_ad5592r_state {
+	struct spi_device *spi;
 };
-int ad5592r_read_raw(struct iio_dev *indio_dev,
+
+static int adi_ad5592r_write_ctr(struct adi_ad5592r_state *st, 
+					u8 reg,
+					u16 val)
+{
+	u16 msg=0;
+	__be16 tx;
+	
+	msg |= FIELD_PREP(ADI_AD5592R_ADDR_MASK, reg);
+	msg |= FIELD_PREP(ADI_AD5592R_VAL_MASK, val);
+	
+	put_unaligned_be16(msg, &tx);
+
+	return spi_write(st->spi, &msg, sizeof(tx));
+}
+
+static int adi_ad5582r_nop(struct adi_ad5592r_state *st, __be16 *rx)
+{
+	struct spi_transfer xfer = {
+		.tx_buf=0,
+		.rx_buf = rx,
+		.len = 2,
+	}
+	return spi_sync_transfer(st->spi, &xfer, 1);
+}
+
+static int adi_ad5592r_read_ctr(struct adi_ad5592r_state *st, 
+					u8 reg,
+					u16 *val)
+{
+	u16 msg=0;
+	__be16 tx;
+	__be16 rx;
+	int ret;
+
+	msg |= FIELD_PREP(ADI_AD5592R_ADDR_MASK, ADI_AD5592R_REG_READBACK);
+	msg |= ADI_AD5592R_MASK_RB_EN;
+	msg |= FIELD_PREP(ADI_AD5592R_MASK_REG_RB, reg);
+
+	put_unaligned_be16(msg, &tx);
+	ret=spi_write(st->spi, &msg, sizeof(tx));
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "Fail read ctrl reg at SPI write");
+		return ret;
+	}
+	ret = adi_ad5592r_nop(st, &rx);
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "Fail read ctrl reg at nop");
+		return ret;
+	}
+	*val = get_unaligned_be16(&rx);
+
+	return 0;
+}
+
+static int ad5592r_read_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan,
 	int *val,
 	int *val2,
@@ -38,7 +108,7 @@ int ad5592r_read_raw(struct iio_dev *indio_dev,
 }
 	return -EINVAL;
 }
-int ad5592r_write_raw(struct iio_dev *indio_dev,
+ static int ad5592r_write_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan,
 	int val,
 	int val2,
@@ -87,16 +157,21 @@ static const struct iio_chan_spec ad5592r_channels[] = {
 static int ad5592r_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
-	struct ad5592r_priv *priv;
-	indio_dev = devm_iio_device_alloc(&spi -> dev, sizeof(*priv));
+	struct ad5592r_state *st;
+
+	indio_dev = devm_iio_device_alloc(&spi -> dev, sizeof(*st);
 	if (!indio_dev)
+	{
 	return -ENOMEM;
+	}
+	st=iio_priv(indio_dev);
+
 	indio_dev->name = "ad5592r_summer";
 	indio_dev->info = &ad5592r_info;
 	indio_dev->channels = ad5592r_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad5592r_channels);
-	priv = iio_priv(indio_dev);
-	priv->enable = false;
+	st->spi=spi;
+	
 	dev_info(&spi->dev, "ad5592r Probed");
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
