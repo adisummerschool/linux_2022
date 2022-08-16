@@ -1,14 +1,92 @@
+#include <asm/unaligned.h>
+#include <linux/bitfield.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 
-struct ad5592r_practica_priv {
-	bool enable;
+#define AD5592R_PRACTICA_READBACK_REG 0x7
+#define AD5592R_PRACTICA_MASK_READBACK_EN BIT(6)
+#define AD5592R_PRACTICA_MASK_READBACK_REG GENMASK(5, 2)
+
+#define AD5592R_PRACTICA_ADDR_MASK GENMASK(14, 11)
+#define AD5592R_PRACTICA_VAL_MASK GENMASK(10, 0)
+
+static struct ad5592r_practica_state {
+	struct spi_device *spi;
 };
 
+static int ad5592r_practica_write_control(struct ad5592r_practica_state *st,
+					  u8 reg, 
+					  u16 val)
+{
+	u16 msg = 0;
+	__be16 tx;
+
+	//msg = msg | ((U16)reg << 11) & AD5592R_PRACTICA_ADDR_MASK;
+	//msg = msg | val & AD5592R_PRACTICA_VAL_MASK;
+
+	msg = msg | FIELD_PREP(AD5592R_PRACTICA_ADDR_MASK, reg);
+	msg = msg | FIELD_PREP(AD5592R_PRACTICA_VAL_MASK, val);
+
+	put_unaligned_be16(msg, &tx);
+
+	return spi_write(st->spi, &msg, sizeof(tx));
+}
+
+static int ad5592r_practica_nop(struct ad5592r_practica_state *st, 
+				__be16 *rx)
+{
+	struct spi_transfer xfer = 
+	{
+		.tx_buf = 0,
+		.rx_buf = rx,
+		.len = 2,
+	};
+
+	return spi_sync_transfer(st->spi, &xfer, 1);
+}
+
+static int ad5592r_practica_read_control(struct ad5592r_practica_state *st,
+					 u8 reg, 
+					 u16 val)
+{
+	u16 msg = 0;
+	__be16 tx;
+	int ret;
+
+	msg = msg | FIELD_PREP(AD5592R_PRACTICA_ADDR_MASK,
+			       AD5592R_PRACTICA_READBACK_REG);
+	msg = msg | AD5592R_PRACTICA_MASK_READBACK_EN;
+	msg = msg | FIELD_PREP(AD5592R_PRACTICA_MASK_READBACK_REG, reg);
+
+	put_unaligned_be16(msg, &tx);
+
+	ret = spi_write(st->spi, &tx, sizeof(tx));
+
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "Fail read control register at SPI write");
+		return ret;
+	}
+
+	ret = ad5592r_practica_nop(st, &tx);
+
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "Fail read control register at NOP");
+		return ret;
+	}
+
+	val = get_unaligned_be16(&tx);
+
+	return 0;
+}
+
 int ad5592r_practica_read_raw(struct iio_dev *indio_dev,
-			      struct iio_chan_spec const *chan, int *val,
-			      int *val2, long mask)
+			      struct iio_chan_spec const *chan, 
+			      int *val,
+			      int *val2, 
+			      long mask)
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -32,8 +110,10 @@ int ad5592r_practica_read_raw(struct iio_dev *indio_dev,
 }
 
 int ad5592r_practica_write_raw(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan, int val,
-			       int val2, long mask)
+			       struct iio_chan_spec const *chan, 
+			       int val,
+			       int val2, 
+			       long mask)
 {
 	return 0;
 }
@@ -85,15 +165,21 @@ static const struct iio_chan_spec ad5592r_practica_channels[] = {
 static int ad5592r_practica_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
+	struct ad5592r_practica_state *st;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, 0);
-	if (!indio_dev)
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev) {
 		return -ENOMEM;
+	}
+
+	st = iio_priv(indio_dev);
 
 	indio_dev->name = "ad5592r_practica";
 	indio_dev->info = &ad5592r_practica_info;
 	indio_dev->channels = ad5592r_practica_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad5592r_practica_channels);
+
+	st->spi = spi;
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }

@@ -713,8 +713,6 @@ config HX711
 	  This driver can also be built as a module. If so, the module will be
 	  called hx711.
 
-<<<<<<< HEAD
-
 config AD5592R_PRACTICA
 	tristate "Analog Devices AD5592R Driver (Practica)"
 	depends on SPI
@@ -725,7 +723,7 @@ config AD5592R_PRACTICA
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5592r_practica.
-=======
+
 config IIO_ADI_EMU
 	tristate "Analog Devices IIO Emulator Driver"
 	depends on SPI
@@ -746,7 +744,6 @@ config AD5592R_PRACTICA
 	 
 		To compile this driver as a module, choose M here: the module will be
 		called ad5592r-practica.
->>>>>>> c5e59d43e7ad23f9bd4de62d6aa652579736164f
 
 config INA2XX_ADC
 	tristate "Texas Instruments INA2xx Power Monitors IIO driver"
