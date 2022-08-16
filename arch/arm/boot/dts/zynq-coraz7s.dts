@@ -3,14 +3,9 @@
 
 &spi0{
 	status = "okay";
-<<<<<<< HEAD
-
+	
 	ad5592r: adc@0 {
 		compatible = "ad5592r_practica";
-=======
-	ad5592r: adc@0{
-		compatible = "ad5592r-practica";
->>>>>>> c5e59d43e7ad23f9bd4de62d6aa652579736164f
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 	};
