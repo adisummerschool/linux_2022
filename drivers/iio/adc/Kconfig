@@ -211,7 +211,7 @@ config AD7768_1
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad7768-1.
 
-config AD5592R
+config AD5592R_PRACTICA
     tristate "Analog Devices AD5592R ADC driver"
 	depends on SPI
 	help
