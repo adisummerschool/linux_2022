@@ -33,6 +33,16 @@ config AD400X
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad400x.
 
+config AD5592R_ADISUMMERSCHOOL
+	tristate "Analog Devices AD5592R ADC Driver"
+	depends on SPI
+	help
+	  Say yes here to enable support for Analog Devices IIO AD5592R ADC
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad5592r.
+
 config AD7091R5
 	tristate "Analog Devices AD7091R5 ADC Driver"
 	depends on I2C
