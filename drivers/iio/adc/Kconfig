@@ -713,7 +713,7 @@ config HX711
 	  This driver can also be built as a module. If so, the module will be
 	  called hx711.
 
-config AD5592r
+config AD5592r_SUMMER
 	tristate "Analog Devices IIO AD5592r driver"
 	depends on SPI
 	help
