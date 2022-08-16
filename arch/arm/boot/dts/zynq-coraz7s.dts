@@ -8,5 +8,6 @@
 		compatible = "ad5592r_summer";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
+		spi-cpha;
 	};
 };

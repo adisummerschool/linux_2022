@@ -5,6 +5,7 @@
  * Copyright 2022 Analog Devices Inc.
  */
 
+#include <linux/delay.h>
 #include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
@@ -14,6 +15,8 @@
 #define AD5592R_REG_READBACK 0x7
 #define AD5592R_MASK_RB_EN BIT(6)
 #define AD5592R_MASK_REG_RB GENMASK(5, 2)
+#define AD5592R_REG_RESET 0xF
+#define AD5592R_VAL_RESET 0x5AC
 
 #define AD5592R_ADDR_MASK GENMASK(14, 11)
 #define AD5592R_VAL_MASK GENMASK(10, 0)
@@ -156,15 +159,54 @@ static const struct iio_chan_spec ad5592r_channels[] = {
 	}
 };
 
+static int ad5592r_reg_access(struct iio_dev *indio_dev, unsigned reg,
+			      unsigned writeval, unsigned *readval)
+{
+	int ret;
+	u16 read;
+	struct ad5592r_state *st = iio_priv(indio_dev);
+
+	if (readval) {
+		ret = ad5592r_read_ctr(st, reg, &read);
+		if (ret) {
+			dev_err(&st->spi->dev, "DBG read failed");
+			return ret;
+		}
+		dev_info(&st->spi->dev, "Read reg  = %x\n", read);
+		
+		*readval = read;
+		return ret;
+	}
+	return ad5592r_write_ctr(st, reg, writeval);
+}
+
 static const struct iio_info ad5592r_info = {
 	.read_raw = &ad5592r_read_raw,
 	.write_raw = &ad5592r_write_raw,
+	.debugfs_reg_access = &ad5592r_reg_access,
 };
+
+static int ad5592r_init(struct iio_dev *indio_dev)
+{
+	struct ad5592r_state *st = iio_priv(indio_dev);
+	int ret;
+
+	//reset
+	ret = ad5592r_write_ctr(st, AD5592R_REG_RESET, AD5592R_VAL_RESET);
+	if (ret) {
+		dev_err(&st->spi->dev, "Reset failed");
+		return ret;
+	}
+	usleep_range(250, 300);
+
+	return 0;
+}
 
 static int ad5592r_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct ad5592r_state *st;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev) {
@@ -178,6 +220,12 @@ static int ad5592r_probe(struct spi_device *spi)
 	indio_dev->num_channels = ARRAY_SIZE(ad5592r_channels);
 
 	st->spi = spi;
+
+	ret = ad5592r_init(indio_dev);
+	if (ret) {
+		dev_err(&st->spi->dev, "Init failed");
+		return ret;
+	}
 
 	dev_info(&spi->dev, "PROBED");
 
