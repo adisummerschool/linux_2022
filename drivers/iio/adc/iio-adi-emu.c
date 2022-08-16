@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IIO Analog Devices, Inc. Emulator Driver
@@ -37,3 +38,16 @@ module_spi_driver(adi_emu_driver);
 MODULE_AUTHOR("Dragos Bogdan <dragos.bogdan@analog.com>");
 MODULE_DESCRIPTION("IIO ADI Emulator Driver");
 MODULE_LICENSE("GPL v2");
+=======
+#include <linux/spi/spi.h>
+#include <linux/module.h>
+static struct spi_driver adi_emu_driver = {
+    .driver = {
+        .name = "iio-adi-emu",
+    }
+};
+module_spi_driver(adi_emu_driver);
+MODULE_AUTHOR("Coroian Razvan <razvan.coroian@gmail.com>");
+MODULE_DESCRIPTION("IIO Analog Devices Emulator Driver");
+MODULE_LICENSE("GPL v2");
+>>>>>>> c5e59d43e7ad23f9bd4de62d6aa652579736164f
