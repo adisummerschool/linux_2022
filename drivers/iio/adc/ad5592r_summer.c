@@ -5,9 +5,82 @@
  * Copyright 2022 Analog Devices Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
+#include <asm/unaligned.h>
+
+#define AD5592R_REG_READBACK 0x7
+#define AD5592R_MASK_RB_EN BIT(6)
+#define AD5592R_MASK_REG_RB GENMASK(5, 2)
+
+#define AD5592R_ADDR_MASK GENMASK(14, 11)
+#define AD5592R_VAL_MASK GENMASK(10, 0)
+
+static struct ad5592r_state {
+	struct spi_device *spi;
+};
+
+/*
+ad5592r_write_ctr(st,0xF,0x5AC)
+0x7DAC
+0xAC7D
+*/
+
+static int ad5592r_write_ctr(struct ad5592r_state *st, u8 reg, u16 val)
+{
+	u16 msg = 0;
+	__be16 tx;
+
+	msg |= FIELD_PREP(AD5592R_ADDR_MASK, reg);
+	msg |= FIELD_PREP(AD5592R_VAL_MASK, val);
+
+	put_unaligned_be16(msg, &tx);
+
+	return spi_write(st->spi, &tx, sizeof(tx));
+}
+
+static int ad5592r_nop(struct ad5592r_state *st, __be16 *rx)
+{
+	struct spi_transfer xfer = {
+		.tx_buf = 0,
+		.rx_buf = rx,
+		.len = 2,
+	};
+
+	return spi_sync_transfer(st->spi, &xfer, 1);
+}
+
+static int ad5592r_read_ctr(struct ad5592r_state *st, u8 reg, u16 *val)
+{
+	u16 msg = 0;
+	__be16 tx;
+	__be16 rx;
+	int ret;
+
+	msg |= FIELD_PREP(AD5592R_ADDR_MASK, AD5592R_REG_READBACK);
+	msg |= AD5592R_MASK_RB_EN;
+	msg |= FIELD_PREP(AD5592R_MASK_REG_RB, reg);
+
+	put_unaligned_be16(msg, &tx);
+
+	ret = spi_write(st->spi, &tx, sizeof(tx));
+	if (ret) {
+		dev_err(&st->spi->dev, "Fail to read ctrl reg at SPI write");
+		return ret;
+	}
+
+	ret = ad5592r_nop(st, &rx);
+	if (ret) {
+		dev_err(&st->spi->dev, "Fail to read ctrl reg at nop");
+		return ret;
+	}
+
+	*val = get_unaligned_be16(&rx);
+
+	return 0;
+}
 
 int ad5592r_read_raw(struct iio_dev *indio_dev,
 		     struct iio_chan_spec const *chan, int *val, int *val2,
@@ -91,16 +164,22 @@ static const struct iio_info ad5592r_info = {
 static int ad5592r_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
+	struct ad5592r_state *st;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, 0);
-
-	if (!indio_dev)
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev) {
 		return -ENOMEM;
+	}
+	st = iio_priv(indio_dev);
 
 	indio_dev->name = "ad5592r";
 	indio_dev->info = &ad5592r_info;
 	indio_dev->channels = ad5592r_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad5592r_channels);
+
+	st->spi = spi;
+
+	dev_info(&spi->dev, "PROBED");
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }

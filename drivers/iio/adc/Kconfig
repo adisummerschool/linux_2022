@@ -293,14 +293,14 @@ config AD799X
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad799x.
 
-config AD5592R
+config AD5592R_SUMMER
 	tristate "Analog Devices IIO AD5592R Driver"
 	depends on SPI
 	help
 	  Say yes here to enable support for Analog Devices IIO AD5592R driver.
 	  
 	  To compile this driver as a module, choose M here: the module will be
-	  called ad5592r.
+	  called ad5592r_summer.
 
 
 config AD9963
