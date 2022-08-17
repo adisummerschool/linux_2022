@@ -12,6 +12,8 @@
 #include <linux/spi/spi.h>
 
 #define ADI_AD5592R_REG_ADC_SEQ         0x2
+#define ADI_AD5592R_REG_GP_CTL		0x3
+#define   ADI_AD5592R_MASK_ADC_RANGE	BIT(5)
 #define ADI_AD5592R_REG_ADC_PIN      	0x4   
 #define ADI_AD5592R_REG_READBACK     	0x7
 #define   ADI_AD5592R_MASK_RB_EN     	BIT(6)
@@ -36,6 +38,7 @@
 static struct adi_ad5592r_state{
 
 	struct spi_device *spi;
+	bool double_gain;
 
 };
 
@@ -162,6 +165,7 @@ int ad5592r_read_raw(struct iio_dev *indio_dev,
 		struct iio_chan_spec const *chan, int *val, int *val2,
 		long mask)
 {	
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
 	int ret;
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -169,15 +173,43 @@ int ad5592r_read_raw(struct iio_dev *indio_dev,
 		if(ret)
 			return ret;
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		*val = st->double_gain;
+		return IIO_VAL_INT;
 	}
 	return -EINVAL;
+}
+static int adi_ad5592r_update_gain(struct iio_dev *indio_dev, bool double_gain)
+{
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+	u16 rx;
+	int ret;
+
+	ret = adi_ad5592r_read_ctr(st, ADI_AD5592R_REG_GP_CTL, &rx);
+	if(ret){
+		dev_err(&st->spi->dev,"Fail to read range form register!");
+		return ret;
+	}
+	if(double_gain)
+		rx |=ADI_AD5592R_MASK_ADC_RANGE;
+	else
+		rx &= ADI_AD5592R_MASK_ADC_RANGE;
+
+	return adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_GP_CTL, rx); 
 }
 
 int ad5592r_write_raw(struct iio_dev *indio_dev,
 		struct iio_chan_spec const *chan, int val, int val2,
 		long mask)
 {
-	return 0;
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+	
+	switch (mask) {
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		st->double_gain = val;
+		return adi_ad5592r_update_gain(indio_dev, val );
+	}
+	return -EINVAL;
 }
 
 static int adi_ad5592r_reg_access(struct iio_dev *indio_dev,
@@ -303,6 +335,7 @@ static int ad5592r_probe(struct spi_device *spi)
 	indio_dev->num_channels = ARRAY_SIZE(ad5592r_channels);
 
 	st->spi = spi;
+	st->double_gain = false;
 
 	ret = adi_ad5592r_init(indio_dev);
 	if(ret)
