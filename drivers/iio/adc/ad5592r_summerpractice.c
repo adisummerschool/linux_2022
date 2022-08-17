@@ -11,15 +11,28 @@
 #include <linux/iio/iio.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
-		
-#define AD5592R_REG_READBACK		0X7
+
+#define AD5592R_REG_ADC_SEQ		0x2
+#define AD5592R_REG_ADC_PIN		0x4
+#define AD5592R_REG_READBACK		0x7
 #define  AD5592R_MASK_RB_EN		BIT(6)
 #define  AD5592R_MASK_REG_RB		GENMASK(5, 2)
+#define AD5592R_REG_POWER_REF		0xB
+#define  AD5592R_MASK_EN_REF		BIT(9)
 #define AD5592R_REG_RESET		0xF
 #define  AD5592R_VAL_RESET		0x5AC
 
+#define AD5592R_MASK_ADC_PIN(x)		BIT(x)	
+#define AD5592R_MASK_ADC_RESP_ADDR	GENMASK(14, 12)
+#define AD5592R_MASK_ADC_RESP_VAL	GENMASK(11, 0)
 #define AD5592R_ADDR_MASK		GENMASK(14, 11)
 #define AD5592R_VAL_MASK		GENMASK(10, 0)
+
+#define AD5592R_MAX_NR_OF_ADC		7
+#define AD5592R_DEFAULT_ADC_PIN_CFG	AD5592R_MASK_ADC_PIN(0) |\
+					AD5592R_MASK_ADC_PIN(1) |\
+					AD5592R_MASK_ADC_PIN(2) |\
+					AD5592R_MASK_ADC_PIN(3) 	
 
 
 static struct ad5592r_state {
@@ -88,30 +101,79 @@ static int ad5592r_read_ctr(struct ad5592r_state *st,
 	return 0;
 }
 
+static int ad5592r_read_adc(struct iio_dev *indio_dev, u8 chan, u16 *val)
+{
+	struct ad5592r_state *st = iio_priv(indio_dev);
+
+	u16 msg = 0;
+	u16 resp;
+	u16 resp_addr;
+	__be16 tx;
+	__be16 rx;
+	int ret;
+
+	if(chan > AD5592R_MAX_NR_OF_ADC)
+	{
+		dev_dbg(&st->spi->dev, "ADC channel exceeds maximum number");
+		return -EINVAL;
+	}
+
+	msg |= FIELD_PREP(AD5592R_ADDR_MASK, AD5592R_REG_ADC_SEQ);
+	msg |= AD5592R_MASK_ADC_PIN(chan);
+
+	put_unaligned_be16(msg, &tx);
+
+	ret = spi_write(st->spi, &tx, sizeof(tx));
+	if (ret)
+	{
+		dev_err(&st->spi->dev, "Fail write sequencer register");
+		return ret;
+	}
+
+	ret = ad5592r_nop(st, NULL);
+	if (ret)
+	{
+		dev_err(&st->spi->dev, "Failed at read adc first nop");
+		return ret;
+	}
+
+	ret = ad5592r_nop(st, &rx);
+	if (ret)
+	{
+		dev_err(&st->spi->dev, "Failed at read adc second nop");
+		return ret;
+	}
+
+	resp = get_unaligned_be16(&rx);
+
+	resp_addr = AD5592R_MASK_ADC_RESP_ADDR & resp;
+	resp_addr = (resp_addr >> 12);
+
+	dev_info(&st->spi->dev, "ADC response addr = %d", resp_addr);
+	if(resp_addr != chan)
+	{
+		dev_err(&st->spi->dev, "Response doesn't match requested chan");
+		return -EIO;
+	}
+
+	*val = resp & AD5592R_MASK_ADC_RESP_VAL;
+	return 0;
+
+}
+
 static int ad5592r_read_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *chan, 
 				int *val,
 				int *val2, 
 				long mask)
 {
+	int ret;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		switch (chan->channel) {
-			//in order to read ADC channel 0 we have to write to the ADC sequence register + 2xNOP
-			// 0(D15) 0010(seq addr) 0(reserved) 0(rep) 0(temp) 00000001 (channel 0 bit set)
-		case 0:
-			*val = 0;
-			break;
-		case 1:
-			*val = 1;
-			break;
-		case 2:
-			*val = 2;
-			break;
-		case 3:
-			*val = 3;
-			break;
-		}
+		ret = ad5592r_read_adc(indio_dev, chan->channel, (u16*)val);
+		if(ret)
+			return ret;
 		return IIO_VAL_INT;
 	}
 	return -EINVAL;
@@ -203,6 +265,22 @@ static int ad5592r_init(struct iio_dev *indio_dev)
 		return ret;
 	}
 	usleep_range(250, 300);
+
+	ret = ad5592r_write_ctr(st, AD5592R_REG_POWER_REF, 
+				AD5592R_MASK_EN_REF);
+	if (ret)
+	{
+		dev_err(&st->spi->dev, "Power reg write failed");
+		return ret;
+	}
+
+	ret = ad5592r_write_ctr(st, AD5592R_REG_ADC_PIN, 
+				AD5592R_DEFAULT_ADC_PIN_CFG);
+	if (ret)
+	{
+		dev_err(&st->spi->dev, "ADC pin reg write failed");
+		return ret;
+	}
 
 	return 0;
 
