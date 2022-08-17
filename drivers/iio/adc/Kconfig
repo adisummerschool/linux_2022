@@ -702,7 +702,7 @@ config HX711
 	  This driver can also be built as a module. If so, the module will be
 	  called hx711.
 
-config AD5592R
+config practica_ad5592r
 	tristate "Analog Devices IIO AD5592R Driver"
 	depends on SPI
 	select SPI_ADI_AD5592R
