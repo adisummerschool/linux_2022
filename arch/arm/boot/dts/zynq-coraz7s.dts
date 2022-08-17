@@ -7,5 +7,6 @@
 		compatible = "practica_ad5592r";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
+		spi-cpha;
 	};
 };
