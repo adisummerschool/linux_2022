@@ -8,5 +8,6 @@
 		compatible = "ad5592r_practica";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
+		spi-cpol;
 	};
 };
