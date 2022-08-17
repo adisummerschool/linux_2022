@@ -245,7 +245,7 @@ config AD7793
 	  To compile this driver as a module, choose M here: the
 	  module will be called AD7793.
 
-config AD5592R
+config AD_PRACTICA
 	tristate "Analog Devices AD5592R ADC driver"
 	depends on SPI
 	
