@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 
+#define ADI_AD5592R_REG_ADC_SEQ		0x2
 #define ADI_AD5592R_REG_GP_CTL		0x3
 #define   ADI_AD5592R_MASK_ADC_RANGE	BIT(5)
 #define ADI_AD5592R_REG_ADC_PIN		0x4
@@ -24,8 +25,9 @@
 #define ADI_AD5592R_REG_RESET		0xF
 #define   ADI_AD5592R_VAL_RESET		0x5AC
 
-
 #define ADI_AD5592R_MASK_ADC_PIN(x)	BIT(x)
+#define ADI_AD5592R_MASK_ADC_RESP_ADDR	GENMASK(14, 12)
+#define ADI_AD5592R_MASK_ADC_RESP_VAL	GENMASK(11, 0)
 #define ADI_AD5592R_ADDR_MASK		GENMASK(14, 11)
 #define ADI_AD5592R_VAL_MASK		GENMASK(10, 0)
 
@@ -100,21 +102,79 @@ static int adi_ad5592r_read_ctr(struct adi_ad5592r_state *st,
 	return 0;
 }
 
+static int adi_ad5592r_read_adc(struct iio_dev *indio_dev, u8 chan, u16 *val)
+{
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+
+	u16 msg = 0;
+	u16 resp;
+	u16 resp_addr;
+	__be16 tx;
+	__be16 rx;
+	int ret;
+
+	if(chan > ADI_AD5592R_MAX_NR_OF_ADC)
+	{
+		dev_dbg(&st->spi->dev,"ADC channel exceeds maxium number");
+		return -EINVAL;
+	}
+
+	msg |= FIELD_PREP(ADI_AD5592R_ADDR_MASK, ADI_AD5592R_REG_ADC_SEQ);
+	msg |= ADI_AD5592R_MASK_ADC_PIN(chan);
+
+	put_unaligned_be16(msg, &tx);
+
+	ret = spi_write(st->spi, &tx, sizeof(tx));
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "Failed to write sequencer register");
+		return ret;
+	}
+
+	ret = adi_ad5592r_nop(st, NULL);
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "Failed at read adc first nop");
+		return ret;
+	}
+
+	ret = adi_ad5592r_nop(st, &rx);
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "Failed at read adc second nop");
+		return ret;
+	}
+
+	resp = get_unaligned_be16(&rx);
+
+	resp_addr = ADI_AD5592R_MASK_ADC_RESP_ADDR & resp;
+	resp_addr = (resp_addr >> 12);
+
+	dev_info(&st->spi->dev, "ADC response addr = %d", resp_addr);
+	if(resp_addr != chan)
+	{
+		dev_err(&st->spi->dev, "Response doesn't match requested chan");
+		return -EIO;
+	}
+
+	*val = resp & ADI_AD5592R_MASK_ADC_RESP_VAL;
+	return 0;
+}
+
 static int adi_ad5592r_read_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *chan,
 				int *val,
 				int *val2,
 				long mask)
 {
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+	int ret;
+
 	switch (mask) {
-	case IIO_CHAN_INFO_ENABLE:
-		*val = 0;
-		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_RAW:
-		if (chan->channel)
-			*val = 0;
-		else
-			*val = 0;
+		ret = adi_ad5592r_read_adc(indio_dev, chan->channel, (u16 *)val);
+		if (ret)
+			return ret;
 		return IIO_VAL_INT;
 	}
 
