@@ -33,6 +33,16 @@ config AD400X
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad400x.
 
+config AD5592R_practica_SR
+		tristate "Analog Devices AD5592R_practica_SR Driver"
+		depends on SPI
+		help
+			Say yes here to enable support for Analog Devices 
+			AD5592R_practica_SR driver.
+
+	  		To compile this driver as a module, choose M here: 
+			the module will be called ad5592r_practica_SR.
+
 config AD7091R5
 	tristate "Analog Devices AD7091R5 ADC Driver"
 	depends on I2C
