@@ -8,10 +8,14 @@
 #include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 
 #define ADI_AD5592R_REG_ADC_SEQ         0x2
+#define   ADI_AD5592R_MASK_REPEAT	BIT(9)
 #define ADI_AD5592R_REG_GP_CTL		0x3
 #define   ADI_AD5592R_MASK_ADC_RANGE	BIT(5)
 #define ADI_AD5592R_REG_ADC_PIN      	0x4   
@@ -39,6 +43,8 @@ static struct adi_ad5592r_state{
 
 	struct spi_device *spi;
 	bool double_gain;
+	u8 nr_active_scan;
+	
 
 };
 
@@ -126,7 +132,7 @@ static int adi_ad5592r_read_adc(struct iio_dev *indio_dev, u8 chan, u16 *val)
 	ret = spi_write(st->spi, &tx, sizeof(tx));
 	if(ret)
 	{
-		dev_err(&st->spi->dev, "Failed write sequencer write!");
+		dev_err(&st->spi->dev, "Failed write sequencer register!");
 		return ret;
 	}
 	
@@ -161,6 +167,64 @@ static int adi_ad5592r_read_adc(struct iio_dev *indio_dev, u8 chan, u16 *val)
 
 }
 
+static irqreturn_t adi_ad5592r_trigger_thread(int irq, void *p )
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+	__be16 rx;
+	u16 sample;
+	int ret;
+	u8 i;
+	
+	for(i=0; i < st->nr_active_scan;i++)
+	{
+		ret = adi_ad5592r_nop(st, &rx);
+		if(ret)
+		{
+			dev_err(&st->spi->dev, "Failed buffer at nop");
+			return IRQ_HANDLED;
+		}
+		sample = get_unaligned_be16(&rx);
+		iio_push_to_buffers(indio_dev, &sample);
+	}
+
+	iio_trigger_notify_done(indio_dev->trig);
+	
+	return IRQ_HANDLED;
+}
+
+static int adi_ad5592r_preenable(struct iio_dev *indio_dev)
+{
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+	u16 msg= 0;
+	u16 active_scan;
+	int ret;
+
+	active_scan = *(indio_dev->active_scan_mask);
+	st->nr_active_scan = hweight16(active_scan);
+
+	msg |= ADI_AD5592R_MASK_REPEAT | active_scan;
+
+	ret = adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_ADC_SEQ, msg);
+        if(ret)
+        {
+                dev_err(&st->spi->dev, "Fail preenable at SPI write");
+                return ret;
+        }
+        ret = adi_ad5592r_nop(st, NULL);
+        if(ret)
+        {
+                dev_err(&st->spi->dev, "Fail preenable at nop");
+                return ret;
+        }
+	return 0;
+}
+
+static const struct iio_buffer_setup_ops adi_add5592r_buffer_ops = {
+	.preenable = &adi_ad5592r_preenable
+};
+
 int ad5592r_read_raw(struct iio_dev *indio_dev,
 		struct iio_chan_spec const *chan, int *val, int *val2,
 		long mask)
@@ -187,7 +251,7 @@ static int adi_ad5592r_update_gain(struct iio_dev *indio_dev, bool double_gain)
 
 	ret = adi_ad5592r_read_ctr(st, ADI_AD5592R_REG_GP_CTL, &rx);
 	if(ret){
-		dev_err(&st->spi->dev,"Fail to read range form register!");
+		dev_err(&st->spi->dev,"Fail to read range from register!");
 		return ret;
 	}
 	if(double_gain)
@@ -234,13 +298,14 @@ static int adi_ad5592r_reg_access(struct iio_dev *indio_dev,
 	return adi_ad5592r_write_ctr(st, reg, writeval);
 }
 
+
 static const struct iio_info ad5592r_info = {
 	.read_raw = &ad5592r_read_raw,
 	.write_raw = &ad5592r_write_raw,
 	.debugfs_reg_access = &adi_ad5592r_reg_access,
 };
 
-static const struct iio_chan_spec ad5592r_channels[] = {
+static const struct iio_chan_spec adi_ad5592r_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.output = 0,
@@ -249,6 +314,14 @@ static const struct iio_chan_spec ad5592r_channels[] = {
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_ENABLE),
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_HARDWAREGAIN),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+			.shift = 0,
+			.endianness = IIO_LE,
+		}
 	},
 	{
 		.type = IIO_VOLTAGE,
@@ -258,6 +331,15 @@ static const struct iio_chan_spec ad5592r_channels[] = {
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_ENABLE),
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_HARDWAREGAIN),
+		.scan_index = 1,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+			.shift = 0,
+			.endianness = IIO_LE,
+		}
+		
 	},
 	{
 		.type = IIO_VOLTAGE,
@@ -267,6 +349,14 @@ static const struct iio_chan_spec ad5592r_channels[] = {
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_ENABLE),
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_HARDWAREGAIN),
+		.scan_index = 2,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+			.shift = 0,
+			.endianness = IIO_LE,
+		}
 	},
 	{
 		.type = IIO_VOLTAGE,
@@ -276,6 +366,14 @@ static const struct iio_chan_spec ad5592r_channels[] = {
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_ENABLE),
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_HARDWAREGAIN),
+		.scan_index = 3,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+			.shift = 0,
+			.endianness = IIO_LE,
+		}
 	}
 };
 
@@ -331,11 +429,12 @@ static int ad5592r_probe(struct spi_device *spi)
 
 	indio_dev->name = "practica_ad5592r";
 	indio_dev->info = &ad5592r_info;
-	indio_dev->channels = ad5592r_channels;
-	indio_dev->num_channels = ARRAY_SIZE(ad5592r_channels);
+	indio_dev->channels = adi_ad5592r_channels;
+	indio_dev->num_channels = ARRAY_SIZE(adi_ad5592r_channels);
 
 	st->spi = spi;
 	st->double_gain = false;
+	st->nr_active_scan = 0;
 
 	ret = adi_ad5592r_init(indio_dev);
 	if(ret)
@@ -343,6 +442,9 @@ static int ad5592r_probe(struct spi_device *spi)
 		dev_err(&st->spi->dev, "Initialization Failed");
 		return ret;
 	}
+
+	devm_iio_triggered_buffer_setup(&spi->dev,indio_dev, NULL,
+	                                &adi_ad5592r_trigger_thread, NULL);
 	
 	dev_info(&spi->dev, "ad5592r Probed");
 
