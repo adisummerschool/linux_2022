@@ -2,7 +2,7 @@
 /*
 * AD5592R SPI ADC driver
 *
-* Copyright 2018 Analog Devices Inc.
+* Copyright 2022 Analog Devices Inc.
 */
 
 #include <asm/unaligned.h>
