@@ -13,14 +13,28 @@
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 
+#define ADI_AD5592R_REG_GP_CTL		0x3
+#define   ADI_AD5592R_MASK_ADC_RANGE	BIT(5)
+#define ADI_AD5592R_REG_ADC_PIN		0x4
 #define ADI_AD5592R_REG_READBACK	0x7
 #define	  ADI_AD5592R_MASK_RB_EN	BIT(6)
 #define	  ADI_AD5592R_MASK_REG_RB	GENMASK(5, 2)
+#define ADI_AD5592R_REG_POWER_REF	0xB
+#define	  ADI_AD5592R_MASK_EN_REF	BIT(9)
 #define ADI_AD5592R_REG_RESET		0xF
 #define   ADI_AD5592R_VAL_RESET		0x5AC
 
+
+#define ADI_AD5592R_MASK_ADC_PIN(x)	BIT(x)
 #define ADI_AD5592R_ADDR_MASK		GENMASK(14, 11)
 #define ADI_AD5592R_VAL_MASK		GENMASK(10, 0)
+
+#define	ADI_AD5592R_MAX_NR_OF_ADC	7
+#define ADI_AD5592R_DEFAULT_ADC_PIN_CFG	ADI_AD5592R_MASK_ADC_PIN(0) |\
+					ADI_AD5592R_MASK_ADC_PIN(1) |\
+					ADI_AD5592R_MASK_ADC_PIN(2) |\
+					ADI_AD5592R_MASK_ADC_PIN(3)
+
 
 static struct adi_ad5592r_state {
 	struct spi_device *spi;
@@ -195,7 +209,23 @@ static int adi_ad5592r_init(struct iio_dev *indio_dev)
 	}
 	usleep_range(250, 300);
 
-	return 0;	
+	ret = adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_POWER_REF,
+				    ADI_AD5592R_MASK_EN_REF);
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "Power reg write failed");
+		return ret;
+	}
+
+	ret = adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_ADC_PIN,
+				    ADI_AD5592R_DEFAULT_ADC_PIN_CFG);
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "ADC pin reg write failed");
+		return ret;
+	}
+
+	return 0;
 }
 
 static int adi_ad5592r_probe(struct spi_device *spi)
