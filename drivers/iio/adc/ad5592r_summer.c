@@ -6,6 +6,37 @@ static const struct iio_info adi_ad5592r_info = {
 
 };
 
+static const struct iio_chan_spec adi_ad5592r_channels[] = {
+	{
+		.type = IIO_VOLTAGE,
+		.info_mask_separate(IIO_CHAN_INFO_RAW),
+		.output = 0,
+		.indexed = 1,
+		.channel = 0,
+	},
+	{
+		.type = IIO_VOLTAGE,
+		.info_mask_separate(IIO_CHAN_INFO_RAW),
+		.output = 0,
+		.indexed = 1,
+		.channel = 1,
+	},
+	{
+		.type = IIO_VOLTAGE,
+		.info_mask_separate(IIO_CHAN_INFO_RAW),
+		.output = 0,
+		.indexed = 1,
+		.channel = 2,
+	},
+	{
+		.type = IIO_VOLTAGE,
+		.info_mask_separate(IIO_CHAN_INFO_RAW),
+		.output = 0,
+		.indexed = 1,
+		.channel = 3,
+	}
+};
+
 static int adi_ad5592r_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -16,6 +47,8 @@ static int adi_ad5592r_probe(struct spi_device *spi)
 	}
 
 	indio_dev->name = "ad5592r";
+	indio_dev->channels = &adi_ad5592r_channels;
+	indio_dev->num_channels = ARRAY_SIZE(adi_ad5592r_channels);
 	indio_dev->info = &adi_ad5592r_info; 
 
 	dev_info(&spi->dev, "ad5592r Probed");
