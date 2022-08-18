@@ -10,10 +10,14 @@
 #include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 
 #define ADI_AD5592R_REG_ADC_SEQ		0x2
+#define   ADI_AD5592R_MASK_REPEAT	BIT(9)
 #define ADI_AD5592R_REG_GP_CTL		0x3
 #define   ADI_AD5592R_MASK_ADC_RANGE	BIT(5)
 #define ADI_AD5592R_REG_ADC_PIN		0x4
@@ -37,10 +41,10 @@
 					ADI_AD5592R_MASK_ADC_PIN(2) |\
 					ADI_AD5592R_MASK_ADC_PIN(3)
 
-
 static struct adi_ad5592r_state {
 	struct spi_device *spi;
 	bool double_gain;
+	u8 nr_active_scan;
 };
 
 static int adi_ad5592r_write_ctr(struct adi_ad5592r_state *st,
@@ -176,11 +180,72 @@ static int adi_ad5592r_update_gain(struct iio_dev *indio_dev, bool double_gain)
 
 	if(double_gain)
 		rx |= ADI_AD5592R_MASK_ADC_RANGE;
-	else
+	else 
 		rx &= ~ADI_AD5592R_MASK_ADC_RANGE;
-
+	
 	return adi_ad5592r_write_ctr(st,  ADI_AD5592R_REG_GP_CTL, rx);
 }
+
+static irqreturn_t adi_ad5592r_trigger_thread(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+	__be16 rx;
+	u16 sample;
+	int ret;
+	u8 i;
+
+	for(i=0; i < st->nr_active_scan; i++)
+	{
+		ret = adi_ad5592r_nop(st, &rx);
+		if(ret)
+		{
+			dev_err(&st->spi->dev,"Failed buffer at nop");
+			return IRQ_HANDLED;
+		}
+		sample = get_unaligned_be16(&rx);
+		iio_push_to_buffers(indio_dev, &sample);
+	}
+
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
+static int adi_ad5592r_preenable(struct iio_dev *indio_dev)
+{
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+	u16 active_scan;
+	u16 msg;
+	int ret;
+
+	active_scan = *(indio_dev->active_scan_mask);
+	st->nr_active_scan = hweight16(active_scan);
+
+	msg = ADI_AD5592R_MASK_REPEAT | active_scan ;
+
+	ret = adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_ADC_SEQ, msg);
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "Fail preenable at SPI write");
+		return ret;
+	}
+
+	ret = adi_ad5592r_nop(st, NULL);
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "Failed preenable at nop");
+		return ret;
+	}
+
+	return 0;
+}
+
+static const struct iio_buffer_setup_ops adi_ad5592r_buffer_ops = {
+	.preenable = &adi_ad5592r_preenable
+};
+
 
 static int adi_ad5592r_read_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *chan,
@@ -210,7 +275,7 @@ static int adi_ad5592r_write_raw(struct iio_dev *indio_dev,
 				 int val,
 				 int val2,
 				 long mask)
-{
+{	
 	struct adi_ad5592r_state *st = iio_priv(indio_dev);
 
 	switch (mask) {
@@ -258,6 +323,14 @@ static const struct iio_chan_spec adi_ad5592r_channels[] = {
 		.output = 0,
 		.indexed = 1,
 		.channel = 0,
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+			.shift = 0,
+			.endianness = IIO_LE,
+		}
 	}, 
 	{
 		.type = IIO_VOLTAGE,
@@ -265,6 +338,14 @@ static const struct iio_chan_spec adi_ad5592r_channels[] = {
 		.output = 0,
 		.indexed = 1,
 		.channel = 1,
+		.scan_index = 1,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+			.shift = 0,
+			.endianness = IIO_LE,
+		}
 	},
 	{
 		.type = IIO_VOLTAGE,
@@ -272,6 +353,14 @@ static const struct iio_chan_spec adi_ad5592r_channels[] = {
 		.output = 0,
 		.indexed = 1,
 		.channel = 2,
+		.scan_index = 2,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+			.shift = 0,
+			.endianness = IIO_LE,
+		}
 	},
 	{
 		.type = IIO_VOLTAGE,
@@ -279,6 +368,14 @@ static const struct iio_chan_spec adi_ad5592r_channels[] = {
 		.output = 0,
 		.indexed = 1,
 		.channel = 3,
+		.scan_index = 3,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+			.shift = 0,
+			.endianness = IIO_LE,
+		}
 	},
 };
 
@@ -297,7 +394,7 @@ static int adi_ad5592r_init(struct iio_dev *indio_dev)
 	}
 	usleep_range(250, 300);
 
-	ret = adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_POWER_REF,
+	ret = adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_POWER_REF, 
 				    ADI_AD5592R_MASK_EN_REF);
 	if(ret)
 	{
@@ -305,7 +402,7 @@ static int adi_ad5592r_init(struct iio_dev *indio_dev)
 		return ret;
 	}
 
-	ret = adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_ADC_PIN,
+	ret = adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_ADC_PIN, 
 				    ADI_AD5592R_DEFAULT_ADC_PIN_CFG);
 	if(ret)
 	{
@@ -313,7 +410,7 @@ static int adi_ad5592r_init(struct iio_dev *indio_dev)
 		return ret;
 	}
 
-	return 0;
+	return 0;	
 }
 
 static int adi_ad5592r_probe(struct spi_device *spi)
@@ -336,6 +433,7 @@ static int adi_ad5592r_probe(struct spi_device *spi)
 
 	st->spi = spi;
 	st->double_gain = false;
+	st->nr_active_scan = 0;
 
 	ret = adi_ad5592r_init(indio_dev);
 	if(ret)
@@ -343,6 +441,10 @@ static int adi_ad5592r_probe(struct spi_device *spi)
 		dev_err(&st->spi->dev, "Init Failed");
 		return ret;
 	}
+
+	devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL,
+					&adi_ad5592r_trigger_thread,
+					&adi_ad5592r_buffer_ops);
 
 	dev_info(&spi->dev, "ad5592r Probed");
 
