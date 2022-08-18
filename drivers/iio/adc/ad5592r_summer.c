@@ -191,6 +191,7 @@ static irqreturn_t adi_ad5592r_trigger_thread(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+	u16 buff[ADI_AD5592R_MAX_NR_OF_ADC];
 	__be16 rx;
 	u16 sample;
 	int ret;
@@ -205,9 +206,11 @@ static irqreturn_t adi_ad5592r_trigger_thread(int irq, void *p)
 			return IRQ_HANDLED;
 		}
 		sample = get_unaligned_be16(&rx);
-		iio_push_to_buffers(indio_dev, &sample);
+		sample &= ADI_AD5592R_MASK_ADC_RESP_VAL;
+		buff[i] = sample;
 	}
 
+	iio_push_to_buffers(indio_dev, buff);
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
