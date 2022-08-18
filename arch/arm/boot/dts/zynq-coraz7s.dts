@@ -1,6 +1,7 @@
 /dts-v1/;
 #include "zynq-coraz7s.dtsi"
 
+<<<<<<< HEAD
 &spi0{
 	status = "okay";
 	ad5592r: adc@0{
@@ -8,5 +9,13 @@
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 		spi-cpha;
+=======
+&spi0 {
+	status = "okay";
+	ad5592r: adc@0 {
+		compatible = "ad5592r";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+>>>>>>> 8f65efdc7becbaf2252c34444c3f202432e7a60f
 	};
 };
