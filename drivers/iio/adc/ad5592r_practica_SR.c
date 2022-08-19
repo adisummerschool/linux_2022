@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
 * AD5592R SPI ADC driver
-* 
+*
 * Copyright 2022 Analog Devices Inc.
 */
 
