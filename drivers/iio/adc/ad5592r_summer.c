@@ -1,12 +1,15 @@
 #include <asm/unaligned.h>
 #include <linux/bitfield.h>
-#include <linux/spi/spi.h>
-#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/iio/iio.h>
+#include <linux/module.h>
+#include <linux/spi/spi.h>
 
 #define ADI_AD5592R_REG_READBACK	0x7
 #define ADI_AD5592R_MASK_RB_EN		BIT(6)
 #define ADI_AD5592R_MASK_REG_RB		GENMASK(5, 2)
+#define ADI_AD5592R_REG_RESET		0xF
+#define ADI_AD5592R_VAL_RESET		0x5AC
 
 #define ADI_AD5592R_ADDR_MASK		GENMASK(14, 11)
 #define ADI_AD5592R_VAL_MASK		GENMASK(10, 0)
@@ -144,10 +147,28 @@ static const struct iio_chan_spec adi_ad5592r_channels[] = {
 	}
 };
 
+static int adi_ad5592r_init(struct iio_dev *indio_dev)
+{
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+	int ret;
+
+	ret = adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_RESET,
+				    ADI_AD5592R_VAL_RESET);
+
+	if (ret) {
+		dev_err(&st->spi->dev, "Reset Failed");
+		return ret;
+	}
+	usleep_range(250, 300);
+
+	return 0;
+}
+
 static int adi_ad5592r_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct adi_ad5592r_state *st;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev) {
@@ -161,6 +182,12 @@ static int adi_ad5592r_probe(struct spi_device *spi)
 	indio_dev->info = &adi_ad5592r_info;
 
 	st->spi = spi;
+
+	ret = adi_ad5592r_init(indio_dev);
+	if (ret) {
+		dev_err(&st->spi->dev, "Init Failed");
+		return ret;
+	}
 
 	dev_info(&spi->dev, "ad5592r Probed");
 
