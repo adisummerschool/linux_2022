@@ -111,9 +111,32 @@ static int adi_ad5592r_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int adi_ad5592r_reg_access(struct iio_dev *indio_dev,
+				  unsigned reg, unsigned writeval,
+				  unsigned *readval)
+{
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+	u16 read;
+	int ret;
+
+	if (readval) {
+		ret = adi_ad5592r_read_ctr(st, reg, &read);
+		if (ret) {
+			dev_err(&st->spi->dev, "DBG read failed");
+			return ret;
+		}
+		dev_info(&st->spi->dev, "read_reg = 0x%x\n", read);
+		*readval = read;
+		return ret;
+	}
+
+	return adi_ad5592r_write_ctr(st, reg, writeval);
+}
+
 static const struct iio_info adi_ad5592r_info = {
 	.read_raw = &adi_ad5592r_read_raw,
 	.write_raw = &adi_ad5592r_write_raw,
+	.debugfs_reg_access = &adi_ad5592r_reg_access,
 };
 
 static const struct iio_chan_spec adi_ad5592r_channels[] = {
