@@ -6,6 +6,7 @@
 #include <linux/spi/spi.h>
 
 #define ADI_AD5592R_REG_ADC_SEQ		0x2
+#define ADI_AD5592R_REG_GP_CTL		0x3
 #define ADI_AD5592R_REG_ADC_PIN		0x4
 #define ADI_AD5592R_REG_READBACK	0x7
 #define ADI_AD5592R_MASK_RB_EN		BIT(6)
@@ -18,6 +19,7 @@
 #define ADI_AD5592R_MAX_NR_OF_ADC	7
 
 #define ADI_AD5592R_MASK_ADC_PIN(x)	BIT(x)
+#define ADI_AD5592R_MASK_ADC_RANGE	BIT(5)
 #define ADI_AD5592R_MASK_ADC_RESP_ADDR	GENMASK(14, 12)
 #define ADI_AD5592R_MASK_ADC_RESP_VAL	GENMASK(11, 0)
 #define ADI_AD5592R_ADDR_MASK		GENMASK(14, 11)
@@ -30,6 +32,7 @@
 
 static struct adi_ad5592r_state {
 	struct spi_device *spi;
+	bool double_gain;
 };
 
 static int adi_ad5592r_write_ctr(struct adi_ad5592r_state *st,
@@ -144,6 +147,29 @@ static int adi_ad5592r_read_adc(struct iio_dev *indio_dev, u8 chan, u16 *val)
 	return 0;
 }
 
+static int adi_ad5592r_update_gain(struct iio_dev *indio_dev, bool double_gain)
+{
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+
+	u16 rx;
+	int ret;
+
+	ret = adi_ad5592r_read_ctr(st, ADI_AD5592R_REG_GP_CTL, &rx);
+	if (ret) {
+		dev_err(&st->spi->dev, "Fail to read range from register");
+		return ret;
+	}
+
+	if (double_gain) {
+		rx |= ADI_AD5592R_MASK_ADC_RANGE; 
+	}
+	else {
+		rx &= ~ADI_AD5592R_MASK_ADC_RANGE;
+	}
+
+	return adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_GP_CTL, rx);
+}
+
 static int adi_ad5592r_read_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *chan,
 				int *val,
@@ -160,6 +186,9 @@ static int adi_ad5592r_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		}
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		*val = st->double_gain;
+		return IIO_VAL_INT;
 	}
 
 	return -EINVAL;
@@ -171,11 +200,13 @@ static int adi_ad5592r_write_raw(struct iio_dev *indio_dev,
 			 	 int val2,
 			 	 long mask)
 {
-	switch (mask) {
-	case IIO_CHAN_INFO_ENABLE:
-		return 0;
-	}
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
 
+	switch (mask) {
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		st->double_gain = val;
+		return adi_ad5592r_update_gain(indio_dev, val);
+	}
 	return -EINVAL;
 }
 
@@ -211,6 +242,7 @@ static const struct iio_chan_spec adi_ad5592r_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_HARDWAREGAIN),
 		.output = 0,
 		.indexed = 1,
 		.channel = 0,
@@ -287,6 +319,7 @@ static int adi_ad5592r_probe(struct spi_device *spi)
 	indio_dev->info = &adi_ad5592r_info;
 
 	st->spi = spi;
+	st->double_gain = false;
 
 	ret = adi_ad5592r_init(indio_dev);
 	if (ret) {
